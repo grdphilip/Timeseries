@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import statsmodels.api as smf
 
 df = pd.read_csv('../data/eu_ger.csv', sep=';')
 
@@ -67,3 +68,7 @@ deltalogdf['deltalogSWE3m '] = deltalogSWE3m
 deltalogdf['deltalogSEK_EUR'] = deltalogSEK_EUR 
 deltalogdf['deltalogSEK_USD'] = deltalogSEK_USD
 
+#Regressionmodel
+model = smf.OLS(deltalogdf['deltalogSWE3m '], deltalogdf['deltalogGer3m'])
+results = model.fit()
+print(results)
