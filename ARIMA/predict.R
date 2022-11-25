@@ -16,16 +16,18 @@ library("lmtest")
 my_data <- read_excel("./data/commodities-1.xls")
 my_data <- ts(my_data[, "Sugar price"], start = c(1960, 1), end = c(2022, 10), frequency = 12)
 logged <- log(my_data)
+difflog <- diff(diff((diff(logged))))
 diff.ts <- diff(my_data, lag = 1, differences = 1)
 data_reserv <- my_data
-clean_data <- tsclean(my_data)
+clean_data <- ts(clean_data)
 diffclean <- diff(clean_data)
 colnames(my_data) <- "Sugar price"
 
 plot.ts(my_data, ylab = "Sugar price", col = "blue", main = "Suger price over time")
-plot.ts(logged, ylab = "Sugar price", col = "darkgreen", main = "Logged data over time")
+plot.ts(difflog, ylab = "Sugar price", col = "darkgreen", main = "Logged data over time")
 plot.ts(diff.ts[, "Sugar price"], col = "#a19f2d", main = "First difference of data")
 plot.ts(clean_data[, "Sugar price"], col = "#8f1494", main = "First difference of data")
+plot.ts(diffclean[, "Sugar price"], col = "#8f1494", main = "First difference of data")
 
 
 
@@ -37,6 +39,9 @@ autoplot(my_data, series = "Sugar price") +
         values = c("Sugar price" = "darkgreen", "Without outliers" = "#51bcc0"),
         breaks = c("Sugar price", "Without outliers")
     )
+
+z_score=(my_data-(mean(my_data))/sd(my_data))
+plot(z_score, type="o", col="purple", main="Outlier identification")
 
 
 View(my_data)
@@ -51,8 +56,8 @@ summary(diff.ts)
 Acf(my_data, lag.max = 20)
 Pacf(my_data, lag.max = 20)
 # Kolla diffad data
-Acf(diff.ts, lag.max = 20, main = "Acf diffdata")
-Pacf(diff.ts, lag.max = 20, main = "Pacf diffdata")
+Acf(diffclean, lag.max = 20, main = "Acf diffdata")
+Pacf(diffclean, lag.max = 20, main = "Pacf diffdata")
 Acf(diff(diff.ts, lag.max = 20, main = "Lag2 diffdata"))
 Pacf(diff(diff.ts, lag.max = 20, main = "Lag2 diffdata"))
 Acf(diff(diff(diff.ts, lag.max = 20, main = "Lag3 diffdata")))
@@ -74,8 +79,8 @@ MA1 <- Arima(clean_data, order = c(0, 1, 0)) # MA(1)
 ARMA1 <- Arima(clean_data, order = c(1, 0, 1)) # ARMA(1)
 Armalist <- list(AR1,MA1,ARMA1)
 
-CleanARMA <- Arima(clean_data, order = c(2,1,1))
-Clean_auto <- auto.arima(diffclean, trace = TRUE, seasonal = FALSE)
+CleanARMA <- Arima(clean_data, order = c(0,0,0))
+coeftestClean_auto <- auto.arima(diffclean, trace = TRUE, seasonal = FALSE)
 
 
 # moving average
@@ -98,14 +103,14 @@ models <- list(model1, model2, model3, model4)
 cleanmodels <- list(CleanARMA, Clean_auto)
 
 
-forecast1 <- forecast(CleanARMA, n = 10)
+forecast1 <- forecast(Clean_auto, n = 10)
 for.mean <- my_data[nrow(my_data)] + cumsum(forecast1[["mean"]])
 
 
 forecast2 <- forecast(model2, n = 10)
 for.mean <- my_data[nrow(my_data)] + cumsum(forecast[["mean"]])
 
-predict(model1, n.ahead = 10)
+predict(forecast1, n.ahead = 10)
 predict(model2, n.ahead = 10)
 
 checkresiduals(model2)
@@ -126,7 +131,8 @@ forecast(model3)
 checkresiduals(ARMA1)
 Acf(residuals(model3))
 Pacf(residuals(model3))
-autoplot(forecast(model1))
-autoplot(forecast(model2))
-autoplot(forecast(model3))
+autoplot(forecast1)
+autoplot(forecast(CleanARMA))
+coeftestautoplot(forecast(model3))
 autoplot(forecast(model4))
+
