@@ -19,7 +19,7 @@ logged <- log(my_data)
 difflog <- diff(diff((diff(logged))))
 diff.ts <- diff(my_data, lag = 1, differences = 1)
 data_reserv <- my_data
-clean_data <- ts(clean_data)
+clean_data <- tsclean(my_data)
 diffclean <- diff(clean_data)
 colnames(my_data) <- "Sugar price"
 
@@ -28,6 +28,7 @@ plot.ts(difflog, ylab = "Sugar price", col = "darkgreen", main = "Logged data ov
 plot.ts(diff.ts[, "Sugar price"], col = "#a19f2d", main = "First difference of data")
 plot.ts(clean_data[, "Sugar price"], col = "#8f1494", main = "First difference of data")
 plot.ts(diffclean[, "Sugar price"], col = "#8f1494", main = "First difference of data")
+boxplot(my_data, col="lightblue", main="Boxplot to detect outliers")
 
 
 
@@ -36,21 +37,28 @@ autoplot(my_data, series = "Sugar price") +
     xlab("Year") + ylab("Sugar price") +
     ggtitle("Sugar price over time without outliers") +
     scale_colour_manual(
-        values = c("Sugar price" = "darkgreen", "Without outliers" = "#51bcc0"),
+        values = c("Sugar price" = "blue", "Without outliers" = "orange"),
         breaks = c("Sugar price", "Without outliers")
     )
 
 z_score=(my_data-(mean(my_data))/sd(my_data))
+
 plot(z_score, type="o", col="purple", main="Outlier identification")
 
 
 View(my_data)
 View(diff.ts)
+print(my_data[,1])
+
+#Identify outliers
+columndata <- subset(my_data, my_data[,1] >= (mean(my_data)*3.5))
 
 # Take first, second and third lag difference of data
 firstlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 1)
 secondlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 2)
 thirdlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 3)
+
+
 
 summary(diff.ts)
 Acf(my_data, lag.max = 20)
@@ -103,12 +111,15 @@ models <- list(model1, model2, model3, model4)
 cleanmodels <- list(CleanARMA, Clean_auto)
 
 
+
 forecast1 <- forecast(Clean_auto, n = 10)
 for.mean <- my_data[nrow(my_data)] + cumsum(forecast1[["mean"]])
 
 
 forecast2 <- forecast(model2, n = 10)
 for.mean <- my_data[nrow(my_data)] + cumsum(forecast[["mean"]])
+
+
 
 predict(forecast1, n.ahead = 10)
 predict(model2, n.ahead = 10)
