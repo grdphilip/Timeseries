@@ -13,27 +13,30 @@ library("lmtest")
 # ii) low residual variance (=low information criteria),
 # iii) few parameters and which is understandable, parameters that make common sense (a parsimonious model).
 
-my_data <- read_excel("./data/commodities-1.xls")
-my_data <- ts(my_data[, "Sugar price"], start = c(1960, 1), end = c(2022, 10), frequency = 12)
-logged <- log(my_data)
-difflog <- diff(diff((diff(logged))))
-diff.ts <- diff(my_data, lag = 1, differences = 1)
-data_reserv <- my_data
-clean_data <- tsclean(my_data)
-diffclean <- diff(clean_data)
-colnames(my_data) <- "Sugar price"
+my_data <- read_excel("./data/commodities-1.xls") #Load our data
+my_data <- ts(my_data[, "Sugar price"], start = c(1960, 1), end = c(2022, 10), frequency = 12) #Transform to timesseries
+colnames(my_data) <- "Sugar price" #Name column Sugar price
+newSeries <- window(my_data, start=1982, frequency=12) #Cut off volatile period
+logNew <- log(newSeries)
+diffNew <- diff(newSeries)
+diffLogNew <- diff(logNew)
 
-plot.ts(my_data, ylab = "Sugar price", col = "blue", main = "Suger price over time")
-plot.ts(difflog, ylab = "Sugar price", col = "darkgreen", main = "Logged data over time")
-plot.ts(diff.ts[, "Sugar price"], col = "#a19f2d", main = "First difference of data")
+#Identify outliers, compare results to make sure outliers are gone 
+outlied <- subset(my_data, my_data[,1] >= (mean(my_data)*3.5))
+notOutlied <- subset(newSeries, newSeries[,1] >= (mean(newSeries)*3.5)) 
+notOutlied2 <- subset(diffLogNew, diffLogNew[,1] >= (mean(diffLogNew)*3.5)) 
+
+#Plots
+plot.ts(my_data , ylab = "Sugar price", col = "blue", main = "Suger price over time")
+plot.ts(newSeries, ylab = "Sugar price", col = "blue", main = "Suger price over time")
+plot.ts(logNew, ylab = "Sugar price", col = "darkgreen", main = "Logged data over time")
+plot.ts(diffNew, col = "#a19f2d", main = "First difference of data")
 plot.ts(clean_data[, "Sugar price"], col = "#8f1494", main = "First difference of data")
-plot.ts(diffclean[, "Sugar price"], col = "#8f1494", main = "First difference of data")
+plot.ts(diffLogNew, col = "#8f1494", main = "First diff of logged series from 1982")
 boxplot(my_data, col="lightblue", main="Boxplot to detect outliers")
-
-
-
+hist(my_data, col="lightblue")
 autoplot(my_data, series = "Sugar price") +
-    autolayer(clean_data, series = "Without outliers") +
+    autolayer(newSeries, series = "Without outliers") +
     xlab("Year") + ylab("Sugar price") +
     ggtitle("Sugar price over time without outliers") +
     scale_colour_manual(
@@ -42,58 +45,28 @@ autoplot(my_data, series = "Sugar price") +
     )
 
 z_score=(my_data-(mean(my_data))/sd(my_data))
-
 plot(z_score, type="o", col="purple", main="Outlier identification")
 
-
-View(my_data)
-View(diff.ts)
-print(my_data[,1])
-
-#Identify outliers
-columndata <- subset(my_data, my_data[,1] >= (mean(my_data)*3.5))
-
-# Take first, second and third lag difference of data
-firstlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 1)
-secondlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 2)
-thirdlogDiff <- diff(log(my_data[, "Sugar price"]), lag = 1, differences = 3)
+# Determine ARIMA order with 
+Acf(newSeries ,lag.max = 20, main = "Acf diffdata")
+Pacf(newSeries, lag.max = 20, main = "Pacf diffdata")
+Acf(diffLogNew, lag.max = 20)
+Pacf(diffLogNew, lag.max = 20)
 
 
 
-summary(diff.ts)
-Acf(my_data, lag.max = 20)
-Pacf(my_data, lag.max = 20)
-# Kolla diffad data
-Acf(diffclean, lag.max = 20, main = "Acf diffdata")
-Pacf(diffclean, lag.max = 20, main = "Pacf diffdata")
-Acf(diff(diff.ts, lag.max = 20, main = "Lag2 diffdata"))
-Pacf(diff(diff.ts, lag.max = 20, main = "Lag2 diffdata"))
-Acf(diff(diff(diff.ts, lag.max = 20, main = "Lag3 diffdata")))
-Pacf(diff(diff(diff.ts, lag.max = 20, main = "Lag3 diffdata")))
-Acf(clean_data, lag.max = 20, main = "Acf cleandata")
-Pacf(clean_data, lag.max = 20, main = "Pacf cleandata")
-Acf(diff(clean_data, lag.max = 20, main = "Acf diffcleandata"))
-Pacf(diff(clean_data, lag.max = 20, main = "Pacf diffcleandata"))
-Acf(diff(diff(clean_data, lag.max = 20, main = "Lag2 cleandata")))
-Pacf(diff(diff(clean_data, lag.max = 20, main = "Lag2 cleandata")))
-adf.test(my_data)
-adf.test(diff.ts)
 
 # Verkar som att datan är är stationär i första differensen. Stor skillnad på lag 1 och 2
+model1 <- arima(newSeries, order=c(2,1,0)) #Only based on cut off data
+model2 <- arima(newSeries, order=c(1,1,2)) #1st diff of logged cut off data 
+auto.arima(newSeries, trace=TRUE, seasonal = FALSE) #Suggests (2,1,1)
+model3 <- arima(newSeries, order = c(2,1,1))
 
-
-AR1 <- Arima(clean_data, order = c(1, 0, 0)) # AR(1)
-MA1 <- Arima(clean_data, order = c(0, 1, 0)) # MA(1)
-ARMA1 <- Arima(clean_data, order = c(1, 0, 1)) # ARMA(1)
-Armalist <- list(AR1,MA1,ARMA1)
-
-CleanARMA <- Arima(clean_data, order = c(0,0,0))
-coeftestClean_auto <- auto.arima(diffclean, trace = TRUE, seasonal = FALSE)
 
 
 # moving average
-autoplot(clean_data, series = "Sugar price") +
-    autolayer(ma(clean_data, 3), series = "Moving average") +
+autoplot(diffLogNew, series = "Sugar price") +
+    autolayer(ma(diffLogNew, 3), series = "Moving average") +
     xlab("Year") + ylab("Sugar price") +
     ggtitle("Sugar price over time with moving average") +
     scale_colour_manual(
@@ -102,29 +75,16 @@ autoplot(clean_data, series = "Sugar price") +
     )
 
 
-model1 <- Arima(diff.ts, order = c(1, 0, 0))
-model2 <- Arima(my_data, order = c(1, 1, 0))
-model3 <- Arima(diff.ts, order = c(0, 0, 3))
-model4 <- Arima(my_data, order = c(0, 1, 3))
-model5 <- Arima(diffclean, order = c(0, 0, 1))
-models <- list(model1, model2, model3, model4)
-cleanmodels <- list(CleanARMA, Clean_auto)
 
-
-
-forecast1 <- forecast(Clean_auto, n = 10)
+forecast1 <- forecast(model1, n = 10)
+forecast2 <- forecast(model2, n = 10)
+forecast3 <- forecast(model3, n = 10)
 for.mean <- my_data[nrow(my_data)] + cumsum(forecast1[["mean"]])
 
+predict(forecast3, n.ahead = 10)
+autoplot(predict(forecast3))
 
-forecast2 <- forecast(model2, n = 10)
-for.mean <- my_data[nrow(my_data)] + cumsum(forecast[["mean"]])
-
-
-
-predict(forecast1, n.ahead = 10)
-predict(model2, n.ahead = 10)
-
-checkresiduals(model2)
+checkresiduals(model1)
 Acf(residuals(model2))
 Pacf(residuals(model2))
 
@@ -132,18 +92,24 @@ plot(my_data,main= "Ljung-Box Q Test", ylab= "P-values", xlab= "Lag")
 qqline(CleanARMA$residuals)
 qqnorm(CleanARMA$residuals)
 
-auto.arima(my_data, trace = TRUE, seasonal = FALSE)
 
-forecast(model3)
+validatePred <- window(my_data, start=1982, frequency=12, end=2017)
+validateAct <- window(my_data, start=1982, frequency=12, end=2019)
+plot.ts(validatePred, ylab = "Sugar price", col = "darkgreen", main = "Logged data over time")
+plot.ts(validateAct, col = "#a19f2d", main = "First difference of data")
+Acf(diff(validatePred), lag.max = 20)
+Pacf(diff(validatePred), lag.max = 20)
 
-ﬁforecast(model4)
+model4 <- arima(validatePred, order=c(1,1,2))
+forecast4 <- forecast(model4, n=10)
+predict(forecast4, n.ahead=10)
+autoplot(predict(forecast4))
 
-
-checkresiduals(ARMA1)
-Acf(residuals(model3))
-Pacf(residuals(model3))
-autoplot(forecast1)
-autoplot(forecast(CleanARMA))
-coeftestautoplot(forecast(model3))
-autoplot(forecast(model4))
-
+autoplot(predict(forecast4), series = "Prediction") +
+    autolayer(validateAct, series = "Actual price") +
+    xlab("Year") + ylab("Sugar price") +
+    ggtitle("Validated prediction to 2019") +
+    scale_colour_manual(
+        values = c("Prediction" = "blue", "Actual price" = "red"),
+        breaks = c("Prediction", "Actual price")
+    )
